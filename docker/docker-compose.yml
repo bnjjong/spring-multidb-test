@@ -12,8 +12,12 @@ services:
       MYSQL_PASSWORD: passA
     ports:
       - "3306:3306"
+    command:
+      - --default-storage-engine=innodb
+      - --binlog_format=ROW
+      - --transaction-isolation=READ-COMMITTED
     volumes:
-      - dbA_data:/var/lib/mysql
+      - ./dbA_data:/var/lib/mysql
 
   dbB:
     image: postgres:13
@@ -26,27 +30,4 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - dbB_data:/var/lib/postgresql/data
-
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: spring-multidb
-    depends_on:
-      - dbA
-      - dbB
-    ports:
-      - "8080:8080"
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      SPRING_JTA_ATOMIKOS_DATASOURCE_DBA_XA_PROPERTIES_URL: jdbc:mysql://dbA:3306/dbA
-      SPRING_JTA_ATOMIKOS_DATASOURCE_DBA_XA_PROPERTIES_USER: userA
-      SPRING_JTA_ATOMIKOS_DATASOURCE_DBA_XA_PROPERTIES_PASSWORD: passA
-      SPRING_JTA_ATOMIKOS_DATASOURCE_DBB_XA_PROPERTIES_URL: jdbc:postgresql://dbB:5432/dbB
-      SPRING_JTA_ATOMIKOS_DATASOURCE_DBB_XA_PROPERTIES_USER: userB
-      SPRING_JTA_ATOMIKOS_DATASOURCE_DBB_XA_PROPERTIES_PASSWORD: passB
-
-volumes:
-  dbA_data:
-  dbB_data:
+      - ./dbB_data:/var/lib/postgresql/data

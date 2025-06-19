@@ -1,9 +1,20 @@
 package io.df.henry.springmultidbtest.service
 
-import java.math.BigDecimal
+import io.df.henry.springmultidbtest.domain.a.Campaign
+import io.df.henry.springmultidbtest.event.CampaignSavedEvent
+import io.df.henry.springmultidbtest.repository.a.CampaignRepository
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
-interface CampaignBudgetBalanceService {
-    fun createOrUpdateNewTx(id: Long, budget: BigDecimal)
-    fun createOrUpdate(id: Long, budget: BigDecimal)
-    fun decreaseBudget(id: Long, amount: BigDecimal)
+@Service
+class CampaignService(
+    private val repo: CampaignRepository,
+    private val publisher: ApplicationEventPublisher
+) {
+    @Transactional("txManagerA")
+    fun save(campaign: Campaign) {
+        val saved = repo.save(campaign)
+        publisher.publishEvent(CampaignSavedEvent(saved.id!!, saved.initialBudget))
+    }
 }

@@ -1,0 +1,29 @@
+# src/main/resources/application.yml
+app:
+  datasource:
+    db-a:
+      jdbc-url: jdbc:mysql://localhost:3306/dbA
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      username: userA
+      password: passA
+
+    db-b:
+      jdbc-url: jdbc:postgresql://localhost:5432/dbB
+      driver-class-name: org.postgresql.Driver
+      username: userB
+      password: passB
+
+spring:
+  sql:
+    init:
+      mode: never
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+      physical-strategy: org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy
+
+logging:
+  level:
+    org.springframework.transaction.interceptor.TransactionInterceptor: TRACE
+    org.springframework.data.jpa.repository.support.SimpleJpaRepository: TRACE

@@ -1,53 +1,80 @@
 package io.df.henry.springmultidbtest.config
 
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.jdbc.DataSourceBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
-import org.springframework.jdbc.datasource.DataSourceTransactionManager
+import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter
 import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.annotation.EnableTransactionManagement
-import javax.sql.DataSource
 
 @Configuration
-@EnableTransactionManagement
 class DataSourceConfig {
 
+    // A용 HikariConfig  — Primary
     @Bean
     @Primary
-    @ConfigurationProperties(prefix = "app.datasource.db-a")
-    fun dataSourceA(): DataSource = DataSourceBuilder.create().build()
+    @ConfigurationProperties("app.datasource.db-a")
+    fun hikariConfigA(): HikariConfig = HikariConfig()
 
+    // B용 HikariConfig
+    @Bean
+    @ConfigurationProperties("app.datasource.db-b")
+    fun hikariConfigB(): HikariConfig = HikariConfig()
+
+    // A용 DataSource (Primary)
     @Bean
     @Primary
-    fun emfA(dataSourceA: DataSource): LocalContainerEntityManagerFactoryBean =
+    fun dataSourceA(
+        @Qualifier("hikariConfigA") cfg: HikariConfig
+    ): HikariDataSource = HikariDataSource(cfg)
+
+    // B용 DataSource
+    @Bean
+    fun dataSourceB(
+        @Qualifier("hikariConfigB") cfg: HikariConfig
+    ): HikariDataSource = HikariDataSource(cfg)
+
+    // A용 EMF
+    @Bean
+    @Primary
+    fun emfA(@Qualifier("dataSourceA") dataSourceA: HikariDataSource): LocalContainerEntityManagerFactoryBean =
         LocalContainerEntityManagerFactoryBean().apply {
             dataSource = dataSourceA
             setPackagesToScan("io.df.henry.springmultidbtest.domain.a")
-            jpaVendorAdapter = HibernateJpaVendorAdapter()
+            persistenceUnitName = "puA"
+            jpaVendorAdapter = HibernateJpaVendorAdapter().apply {
+                setShowSql(true)
+                setDatabasePlatform("org.hibernate.dialect.MySQLDialect")
+            }
         }
 
+    // B용 EMF
+    @Bean
+    fun emfB(@Qualifier("dataSourceB") dataSourceB: HikariDataSource): LocalContainerEntityManagerFactoryBean =
+        LocalContainerEntityManagerFactoryBean().apply {
+            println("jdbcURL ============= " + (dataSourceB as HikariDataSource).jdbcUrl)
+            dataSource = dataSourceB
+            setPackagesToScan("io.df.henry.springmultidbtest.domain.b")
+            persistenceUnitName = "puB"
+            jpaVendorAdapter = HibernateJpaVendorAdapter().apply {
+                setShowSql(true)
+                setDatabasePlatform("org.hibernate.dialect.PostgreSQLDialect")
+            }
+        }
+
+    // A용 TxMgr
     @Bean
     @Primary
     fun txManagerA(emfA: LocalContainerEntityManagerFactoryBean): PlatformTransactionManager =
-        DataSourceTransactionManager(emfA.`object`!!)
+        JpaTransactionManager(emfA.`object`!!)
 
+    // B용 TxMgr
     @Bean
-    @ConfigurationProperties(prefix = "app.datasource.db-b")
-    fun dataSourceB(): DataSource = DataSourceBuilder.create().build()
-
-    @Bean
-    fun emfB(dataSourceB: DataSource): LocalContainerEntityManagerFactoryBean =
-        LocalContainerEntityManagerFactoryBean().apply {
-            dataSource = dataSourceB
-            setPackagesToScan("io.df.henry.springmultidbtest.domain.b")
-            jpaVendorAdapter = HibernateJpaVendorAdapter()
-        }
-
-    @Bean
-    fun txManagerB(emfB: LocalContainerEntityManagerFactoryBean): PlatformTransactionManager =
-        DataSourceTransactionManager(emfB.`object`!!)
+    fun txManagerB(@Qualifier("emfB") emfB: LocalContainerEntityManagerFactoryBean): PlatformTransactionManager =
+        JpaTransactionManager(emfB.`object`!!)
 }
